@@ -1,9 +1,14 @@
 using System.Net;
 using System.Text;
+using Amazon;
 using Amazon.Lambda.Core;
+using Amazon.SecretsManager.Model;
+using Amazon.SecretsManager;
 using LambaExamenMDC.Models;
 using Newtonsoft.Json;
-
+using Amazon;
+using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
 
@@ -11,16 +16,20 @@ namespace LambaExamenMDC;
 
 public class Function
 {
-    const string API_KEY = "5tMpg9KcwHw57Kx9qUUNILITRJ1WK3yFQuOw3Cd9HQ8VY6vYC7oPJQQJ99BEACHYHv6XJ3w3AAAAACOGOZVY";
-    const string ENDPOINT = "https://paco-mb6srmq2-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2025-01-01-preview";
+    private static string API_KEY;/* = "5tMpg9KcwHw57Kx9qUUNILITRJ1WK3yFQuOw3Cd9HQ8VY6vYC7oPJQQJ99BEACHYHv6XJ3w3AAAAACOGOZVY";*/
+    private static string ENDPOINT; /*= "https://paco-mb6srmq2-eastus2.cognitiveservices.azure.com/openai/deployments/gpt-4.1/chat/completions?api-version=2025-01-01-preview";*/
 
-
+   
     public async Task<Question> FunctionHandler(Question input, ILambdaContext context)
     {
+        Secrets s = await GetSecret();
+        API_KEY = s.API_KEY;
+        ENDPOINT = s.ENDPOINT;
         Question data = new Question
         {
             Ques = await AskQuestion(input.Ques)
         };
+        
         return data;
     }
 
@@ -89,4 +98,30 @@ public class Function
             }
         }
     }
+
+    private static async Task<Secrets> GetSecret()
+    {
+        string secretName = "secretoexamen";
+        string region = "us-east-1";
+
+        IAmazonSecretsManager client = new AmazonSecretsManagerClient(RegionEndpoint.GetBySystemName(region));
+
+        GetSecretValueRequest request = new GetSecretValueRequest
+        {
+            SecretId = secretName,
+            VersionStage = "AWSCURRENT", // VersionStage defaults to AWSCURRENT if unspecified.
+        };
+
+        GetSecretValueResponse response;
+        response = await client.GetSecretValueAsync(request);
+        string secret = response.SecretString;
+        Secrets s = JsonConvert.DeserializeObject<Secrets>(secret);
+        return s;
+
+    }
 }
+
+
+
+
+
